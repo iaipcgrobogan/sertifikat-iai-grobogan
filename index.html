@@ -1,0 +1,229 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pencarian Sertifikat | PC IAI Grobogan</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;font-family:Arial,sans-serif;
+  background:linear-gradient(135deg,#0f5132,#198754);
+  min-height:100vh;color:#24312a;
+  display:flex;align-items:center;justify-content:center;
+  padding:20px
+}
+.container{width:100%;max-width:520px}
+.card{
+  background:white;border-radius:22px;padding:28px;
+  box-shadow:0 15px 40px #0003;margin-bottom:16px
+}
+.header{text-align:center}
+.logo{width:85px;max-width:100%;margin-bottom:10px}
+h1{font-size:25px;color:#198754;margin:8px 0}
+.subtitle{color:#66736b;line-height:1.6;font-size:14px}
+label{display:block;font-weight:bold;margin:18px 0 8px}
+input,select{
+  width:100%;padding:13px;border:1px solid #ccd5ce;
+  border-radius:10px;font-size:15px;background:#fff
+}
+input:focus,select:focus{
+  outline:2px solid #198754;border-color:#198754
+}
+button,.btn{
+  display:block;width:100%;padding:14px;margin-top:20px;
+  border:0;border-radius:10px;background:#198754;color:white;
+  font-size:16px;font-weight:bold;text-align:center;
+  text-decoration:none;cursor:pointer
+}
+button:hover,.btn:hover{background:#146c43}
+button:disabled{background:#9ca3af;cursor:wait}
+.status{
+  display:none;margin-top:16px;padding:13px;border-radius:10px;
+  font-size:14px;line-height:1.6;overflow-wrap:anywhere
+}
+.status.show{display:block}
+.status.success{background:#e8f6ed;color:#146c43}
+.status.error{background:#fdeaea;color:#b42318}
+.status.info{background:#eef6ff;color:#1756a9}
+.result{
+  display:none;background:#f1f8f4;padding:16px;
+  border-radius:12px;margin-top:18px
+}
+.result.show{display:block}
+.notice{font-size:12px;color:#6b7280;line-height:1.6;margin-top:14px}
+.footer{text-align:center;color:white;font-size:12px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <div class="header">
+      <img
+        src="https://i.ibb.co.com/gFRb6frq/Logo-IAI-Grobogan-b.png"
+        class="logo" alt="Logo PC IAI Grobogan">
+      <h1>🎓 Pencarian Sertifikat</h1>
+      <p class="subtitle">
+        PC IAI Grobogan<br>
+        Cari sertifikat kegiatan Anda secara online.
+      </p>
+    </div>
+
+    <form id="searchForm">
+      <label for="eventSelect">Pilih Kegiatan</label>
+      <select id="eventSelect" required>
+        <option value="">Memuat daftar kegiatan...</option>
+      </select>
+
+      <label for="nama">Nama Lengkap</label>
+      <input id="nama" type="text" autocomplete="name"
+        placeholder="Masukkan nama sesuai pendaftaran" required>
+
+      <label for="nik">NIK</label>
+      <input id="nik" type="text" inputmode="numeric"
+        autocomplete="off" maxlength="16"
+        placeholder="Masukkan 16 digit NIK" required>
+
+      <button type="submit" id="btnCari">CARI SERTIFIKAT</button>
+    </form>
+
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+
+    <div id="result" class="result">
+      <b>✅ Sertifikat ditemukan</b>
+      <p id="fileName" style="overflow-wrap:anywhere"></p>
+      <a id="linkSertifikat" class="btn"
+         href="#" target="_blank" rel="noopener">
+        LIHAT / UNDUH SERTIFIKAT PDF
+      </a>
+    </div>
+
+    <p class="notice">
+      Pencarian memerlukan data yang sesuai dengan pendaftaran dan
+      catatan kehadiran. Sertifikat hanya dapat diakses jika data
+      peserta memenuhi ketentuan kegiatan. Gunakan NIK Anda sendiri.
+    </p>
+  </div>
+
+  <div class="footer">
+    Sistem Sertifikat Digital • PC IAI Grobogan
+  </div>
+</div>
+
+<script>
+const API_URL =
+  'https://script.google.com/macros/s/AKfycbzQJl6ixktTvRMz1F4rXiyEWHfAWP6O6U8divvmlH8gSD1oLBjiqlET6wq6ikI1F0XflQ/exec';
+
+const $ = id => document.getElementById(id);
+
+function showStatus(message, type) {
+  const el = $('status');
+  el.textContent = message;
+  el.className = 'status show ' + type;
+}
+
+function hideResult() {
+  $('result').classList.remove('show');
+  $('linkSertifikat').href = '#';
+  $('fileName').textContent = '';
+}
+
+async function apiGet(url) {
+  const response = await fetch(url, {cache:'no-store'});
+  const data = await response.json();
+
+  if (!data || !data.success) {
+    throw new Error(data?.message || 'Permintaan gagal diproses.');
+  }
+  return data;
+}
+
+async function loadEvents() {
+  const select = $('eventSelect');
+
+  try {
+    const data = await apiGet(API_URL + '?action=events');
+    const events = Array.isArray(data.data) ? data.data : [];
+
+    select.innerHTML = '<option value="">-- Pilih Kegiatan --</option>';
+
+    events.forEach(event => {
+      const option = document.createElement('option');
+      option.value = event.ID_EVENT || '';
+      option.textContent =
+        (event.JUDUL || event.ID_EVENT || 'Kegiatan') +
+        ' (' + (event.ID_EVENT || '') + ')';
+      select.appendChild(option);
+    });
+
+    if (!events.length) {
+      showStatus('Daftar kegiatan belum tersedia.', 'error');
+    }
+  } catch (error) {
+    select.innerHTML = '<option value="">Gagal memuat kegiatan</option>';
+    showStatus(
+      'Gagal memuat daftar kegiatan. Periksa koneksi dan URL API Apps Script.',
+      'error'
+    );
+  }
+}
+
+$('searchForm').addEventListener('submit', async function(event) {
+  event.preventDefault();
+  hideResult();
+
+  const idEvent = $('eventSelect').value.trim();
+  const nama = $('nama').value.trim();
+  const nik = $('nik').value.trim();
+  const button = $('btnCari');
+
+  if (!idEvent) {
+    showStatus('Silakan pilih kegiatan terlebih dahulu.', 'error');
+    return;
+  }
+
+  if (!nama) {
+    showStatus('Nama lengkap wajib diisi.', 'error');
+    return;
+  }
+
+  if (!/^\d{16}$/.test(nik)) {
+    showStatus('NIK harus terdiri dari 16 digit angka.', 'error');
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'MENCARI...';
+  showStatus('Sedang memeriksa data kehadiran dan sertifikat...', 'info');
+
+  try {
+    const params = new URLSearchParams({
+      action: 'cari_sertifikat',
+      id_event: idEvent,
+      nama: nama,
+      nik: nik
+    });
+
+    const data = await apiGet(API_URL + '?' + params.toString());
+
+    $('fileName').textContent = data.fileName || 'Sertifikat PDF';
+    $('linkSertifikat').href = data.url;
+    $('result').classList.add('show');
+
+    showStatus('Sertifikat berhasil ditemukan.', 'success');
+  } catch (error) {
+    showStatus(
+      error.message || 'Pencarian gagal. Silakan coba kembali.',
+      'error'
+    );
+  } finally {
+    button.disabled = false;
+    button.textContent = 'CARI SERTIFIKAT';
+  }
+});
+
+loadEvents();
+</script>
+</body>
+</html>
